@@ -515,7 +515,7 @@ class Prophet extends Component {
         const {
           api_event_kind,
           api_event_id,
-          api_destruction_battle,
+          api_dddd_battle,
           api_maparea_id,
         } = body
         sortieState = 1
@@ -528,14 +528,14 @@ class Prophet extends Component {
           airForce,
         } = this.constructor.initState)
         // land base air raid
-        if (api_destruction_battle != null) {
+        if (api_dddd_battle != null) {
           // construct virtual fleet to reprsent the base attack
           const { airbase } = this.props
           const {
             api_air_base_attack,
             api_f_maxhps,
             api_f_nowhps,
-          } = api_destruction_battle
+          } = api_dddd_battle
           const parsed_api_air_base_attack =
             typeof api_air_base_attack === 'string'
               ? JSON.parse(api_air_base_attack)
@@ -564,7 +564,7 @@ class Prophet extends Component {
             api_ship_lv,
             api_lost_kind,
             api_formation,
-          } = api_destruction_battle
+          } = api_dddd_battle
           enemyFleet = initEnemy(
             0,
             api_ship_ke,

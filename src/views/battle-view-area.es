@@ -6,6 +6,7 @@ import { connect } from 'react-redux'
 import { Tooltip } from 'views/components/etc/overlay'
 import { withNamespaces } from 'react-i18next'
 import { compose } from 'redux'
+import styled from 'styled-components'
 
 import { extensionSelectorFactory } from 'views/utils/selectors'
 
@@ -15,7 +16,83 @@ import SquadView from './squad-view'
 import BattleInfo from './battle-info'
 import DropInfo from './drop-info'
 import NextSpotInfo from './next-spot-info'
-import { PLUGIN_KEY, combinedFleetType, getTPDazzyDing } from '../utils'
+import {
+  PLUGIN_KEY,
+  combinedFleetType,
+  getTPDazzyDing,
+  SortieState,
+} from '../utils'
+
+const FleetsContainer = styled.div`
+  display: flex;
+  flex-direction: ${({ horizontalLayout }) =>
+    horizontalLayout ? 'row' : 'column'};
+`
+
+const FleetContainer = styled.div`
+  display: flex;
+  overflow: hidden;
+`
+
+const ProphetInfo = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 4px;
+  flex-direction: column;
+`
+
+const Fleets = styled.div`
+  display: flex;
+`
+
+const CombatTitle = styled.div`
+  display: flex;
+  line-height: 32px;
+  width: 100%;
+`
+
+const StatGroup = styled.span`
+  margin-left: 1ex;
+  margin-right: 1ex;
+
+  .svg-inline--fa {
+    margin-right: 1ex;
+  }
+`
+
+const FleetTitle = styled.div`
+  flex: 1;
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+  white-space: nowrap;
+  cursor: default;
+  display: flex;
+  overflow: hidden;
+  justify-content: ${({ isFriend }) => isFriend && 'flex-end'};
+
+  ${StatGroup}:last-child {
+    margin-right: ${({ isFriend }) => isFriend && 0};
+  }
+
+  ${StatGroup}:first-child {
+    margin-left: ${({ isFriend }) => !isFriend && 0};
+  }
+`
+
+const FleetName = styled.div`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+`
+
+const CombatVS = styled.div`
+  flex: 0;
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+  cursor: default;
+  opacity: ${({ visible }) => (visible ? 1 : 0)};
+`
 
 const inEventSelector = createSelector(
   [(state) => state.const.$maps],
@@ -50,8 +127,11 @@ const BattleViewArea = compose(
       true,
     )
     const spot =
-      props.sortieState === 3 ? 'practice' : `${sortieMapId}-${currentNode}`
-    let enemyTitle = props.sortieState === 3 ? 'PvP' : 'Enemy Vessel'
+      props.sortieState === SortieState.Practice
+        ? 'practice'
+        : `${sortieMapId}-${currentNode}`
+    let enemyTitle =
+      props.sortieState === SortieState.Practice ? 'PvP' : 'Enemy Vessel'
     enemyTitle = showEnemyTitle
       ? _.get(
           extensionSelectorFactory(PLUGIN_KEY)(state),
@@ -116,7 +196,7 @@ const BattleViewArea = compose(
     airForce = [], // [count, lostCount, enemyCount, enemyLostCount]
     airControl = 0,
     isBaseDefense,
-    sortieState = 0,
+    sortieState = SortieState.InPort,
     eventId = 0,
     eventKind = 0,
     result = {},
@@ -141,7 +221,7 @@ const BattleViewArea = compose(
     const enemyWidth = enemyEscort && !isBaseDefense ? 2 : 1
     const { getShip, getItem } = _.pick(result, ['getShip', 'getItem'])
     const alliedForce = (
-      <div className="div-row">
+      <Fleets>
         <FleetView
           fleet={isBaseDefense ? landBase : mainFleet}
           title={t('Main Fleet')}
@@ -156,14 +236,11 @@ const BattleViewArea = compose(
           View={View}
           root={root}
         />
-      </div>
+      </Fleets>
     )
     const enemyForce =
-      sortieState > 1 || isBaseDefense ? (
-        <div
-          className="div-row"
-          style={{ flexDirection: ecGameOrder ? 'row-reverse' : 'row' }}
-        >
+      sortieState > SortieState.Navigation || isBaseDefense ? (
+        <Fleets style={{ flexDirection: ecGameOrder ? 'row-reverse' : 'row' }}>
           <FleetView
             fleet={enemyFleet}
             title={t('Enemy Fleet')}
@@ -176,65 +253,62 @@ const BattleViewArea = compose(
             count={times * enemyCount}
             root={root}
           />
-        </div>
+        </Fleets>
       ) : (
         <noscript />
       )
     const combatInfo = (
-      <div className="alert div-row prophet-info">
-        <div className="combat-title" title={t(friendTitle)}>
-          <span>{`${t(friendTitle)}`}</span>
-          {TP.total > 0 && !isBaseDefense && (
-            <span style={{ marginLeft: '1ex', marginRight: '1ex' }}>
-              <Tooltip
-                position="bottom"
-                content={
-                  <div id="tp-indicator">
-                    <span>
-                      {`${t('A_rank')}${Math.floor(TP.actual * 0.7)}`}
-                    </span>
-                  </div>
-                }
-              >
-                <span>
-                  <FontAwesome name="database" style={{ marginRight: '1ex' }} />
-                  [{TP.total !== TP.actual && <span>{`${TP.actual} / `}</span>}
-                  <span>{TP.total}</span>]
-                </span>
-              </Tooltip>
-            </span>
-          )}
-          {airForce[0] ? (
-            <span>
-              <FontAwesome name="plane" style={{ marginRight: '1ex' }} />
-              {`[${airForce[0] - airForce[1]} / ${airForce[0]}]`}
-            </span>
-          ) : (
-            ''
-          )}
-        </div>
-        <div
-          className="combat-vs"
-          style={{ opacity: sortieState > 1 || isBaseDefense ? 1 : 0 }}
-        >
-          vs
-        </div>
-        {sortieState > 1 || isBaseDefense ? (
-          <div className="combat-title" title={t(enemyTitle)}>
-            {airForce[2] ? (
-              <span>
-                <FontAwesome name="plane" />
-                {` [${airForce[2] - airForce[3]} / ${airForce[2]}]`}
-              </span>
-            ) : (
-              ''
+      <ProphetInfo>
+        <CombatTitle>
+          <FleetTitle isFriend title={t(friendTitle)}>
+            <FleetName>{`${t(friendTitle)}`}</FleetName>
+            {TP.total > 0 && !isBaseDefense && (
+              <StatGroup>
+                <Tooltip
+                  position="bottom"
+                  content={
+                    <div id="tp-indicator">
+                      <span>
+                        {`${t('A_rank')}${Math.floor(TP.actual * 0.7)}`}
+                      </span>
+                    </div>
+                  }
+                >
+                  <span>
+                    <FontAwesome name="database" />[
+                    {TP.total !== TP.actual && <span>{`${TP.actual} / `}</span>}
+                    <span>{TP.total}</span>]
+                  </span>
+                </Tooltip>
+              </StatGroup>
             )}
-            {` ${t(enemyTitle)}`}
-          </div>
-        ) : (
-          <div className="combat-title" />
-        )}
-      </div>
+            {airForce[0] > 0 && (
+              <StatGroup>
+                <FontAwesome name="plane" />
+                {`[${airForce[0] - airForce[1]} / ${airForce[0]}]`}
+              </StatGroup>
+            )}
+          </FleetTitle>
+          <CombatVS
+            visible={sortieState > SortieState.Navigation || isBaseDefense}
+          >
+            vs
+          </CombatVS>
+          {sortieState > SortieState.Navigation || isBaseDefense ? (
+            <FleetTitle title={t(enemyTitle)}>
+              {airForce[2] > 0 && (
+                <StatGroup>
+                  <FontAwesome name="plane" />
+                  {` [${airForce[2] - airForce[3]} / ${airForce[2]}]`}
+                </StatGroup>
+              )}
+              <FleetName>{t(enemyTitle)}</FleetName>
+            </FleetTitle>
+          ) : (
+            <FleetTitle />
+          )}
+        </CombatTitle>
+      </ProphetInfo>
     )
     const battleInfo = (
       <BattleInfo
@@ -245,10 +319,10 @@ const BattleViewArea = compose(
       />
     )
     const mapInfo = (
-      <div className="alert prophet-info">
+      <ProphetInfo className="alert prophet-info">
         {
           /* eslint-disable no-nested-ternary */
-          sortieState === 1 && !isBaseDefense ? (
+          sortieState === SortieState.Navigation && !isBaseDefense ? (
             <NextSpotInfo eventId={eventId} eventKind={eventKind} />
           ) : isBaseDefense ? (
             [
@@ -257,20 +331,20 @@ const BattleViewArea = compose(
             ]
           ) : getShip || getItem ? (
             <DropInfo getShip={getShip} getItem={getItem} />
-          ) : sortieState > 1 || isBaseDefense ? (
+          ) : sortieState > SortieState.Navigation || isBaseDefense ? (
             battleInfo
           ) : (
             <noscript />
           )
           /* eslint-enable no-nested-ternary */
         }
-      </div>
+      </ProphetInfo>
     )
     return (
       <div id="overview-area">
         {horizontalLayout ? combatInfo : null}
-        <div className={horizontalLayout ? 'div-row' : ''}>
-          <div
+        <FleetsContainer horizontalLayout={horizontalLayout}>
+          <FleetContainer
             className="fleet-container"
             style={{
               flex: horizontalLayout ? fleetWidth : 1,
@@ -282,8 +356,8 @@ const BattleViewArea = compose(
           >
             {alliedForce}
             {!horizontalLayout ? combatInfo : null}
-          </div>
-          <div
+          </FleetContainer>
+          <FleetContainer
             className="fleet-container"
             style={{
               flex: horizontalLayout ? enemyWidth : 1,
@@ -295,8 +369,8 @@ const BattleViewArea = compose(
           >
             {enemyForce}
             {!horizontalLayout ? mapInfo : null}
-          </div>
-        </div>
+          </FleetContainer>
+        </FleetsContainer>
         {horizontalLayout ? mapInfo : null}
       </div>
     )
